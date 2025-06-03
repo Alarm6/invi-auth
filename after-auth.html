@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8" />
+  <title>После авторизации VK ID</title>
+</head>
+<body>
+  <script>
+    // Получаем параметры из URL (если используется responseMode: 'redirect' и передаются параметры в query)
+    const urlParams = new URLSearchParams(window.location.search);
+    const code = urlParams.get('code');
+    const deviceId = urlParams.get('device_id');
+    const error = urlParams.get('error');
+
+    if (error) {
+      document.body.innerHTML = `<h2>Ошибка авторизации: ${error}</h2>`;
+    } else if (code && deviceId) {
+      document.body.innerHTML = `<h2>Авторизация успешна!</h2><p>Code: ${code}</p><p>Device ID: ${deviceId}</p>`;
+      // Здесь обычно происходит обмен кода на токен через бэкенд
+    } else {
+      document.body.innerHTML = `<h2>Ожидание данных авторизации...</h2>`;
+    }
+  </script>
+</body>
+</html>

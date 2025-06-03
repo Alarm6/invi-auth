@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8" />
+  <title>VK ID Авторизация</title>
+</head>
+<body>
+  <script>
+    function generateCodeVerifier(length = 64) {
+      const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-._~';
+      let result = '';
+      for (let i = 0; i < length; i++) {
+        result += chars.charAt(Math.floor(Math.random() * chars.length));
+      }
+      return result;
+    }
+
+    async function generateCodeChallenge(verifier) {
+      const encoder = new TextEncoder();
+      const data = encoder.encode(verifier);
+      const hash = await crypto.subtle.digest('SHA-256', data);
+      const base64 = btoa(String.fromCharCode(...new Uint8Array(hash)))
+        .replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+      return base64;
+    }
+
+    (async () => {
+      const clientId = '53648174';
+      const redirectUri = 'https://whimsical-blini-c26feb.netlify.app/after-auth.html';
+      const scope = 'vkid.personal_info';
+      const responseType = 'code';
+      const codeVerifier = generateCodeVerifier();
+      const codeChallenge = await generateCodeChallenge(codeVerifier);
+      const state = Math.random().toString(36).substring(2);
+
+      sessionStorage.setItem('code_verifier', codeVerifier);
+      sessionStorage.setItem('state', state);
+
+      const authUrl = `https://id.vk.com/oauth/authorize?client_id=${clientId}` +
+        `&redirect_uri=${encodeURIComponent(redirectUri)}` +
+        `&response_type=${responseType}` +
+        `&scope=${scope}` +
+        `&state=${state}` +
+        `&code_challenge=${codeChallenge}` +
+        `&code_challenge_method=S256`;
+
+      window.location.href = authUrl;
+    })();
+  </script>
+</body>
+</html>
