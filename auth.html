@@ -1,51 +1,70 @@
 <!DOCTYPE html>
 <html lang="ru">
 <head>
-  <meta charset="UTF-8" />
-  <title>VK ID Авторизация</title>
+  <meta charset="UTF-8">
+  <title>Обработка авторизации VK ID</title>
 </head>
 <body>
+  <h2>Авторизация VK ID...</h2>
+  <div id="output">Обработка...</div>
+
   <script>
-    function generateCodeVerifier(length = 64) {
-      const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-._~';
-      let result = '';
-      for (let i = 0; i < length; i++) {
-        result += chars.charAt(Math.floor(Math.random() * chars.length));
+    const params = new URLSearchParams(window.location.search);
+    const code = params.get('code');
+    const state = params.get('state');
+
+    const storedState = sessionStorage.getItem('state');
+    const codeVerifier = sessionStorage.getItem('code_verifier');
+
+    if (state !== storedState) {
+      document.getElementById('output').innerText = 'Ошибка: неверный параметр state.';
+      throw new Error('State mismatch');
+    }
+
+    if (!code) {
+      document.getElementById('output').innerText = 'Ошибка: отсутствует параметр code.';
+      throw new Error('Missing code');
+    }
+
+    if (!codeVerifier) {
+      document.getElementById('output').innerText = 'Ошибка: отсутствует code_verifier.';
+      throw new Error('Missing code_verifier');
+    }
+
+    const clientId = '53648174';
+    const redirectUri = 'https://whimsical-blini-c26feb.netlify.app/after-auth.html';
+
+    async function exchangeCodeForToken() {
+      try {
+        const response = await fetch('https://id.vk.com/oauth2/token', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/x-www-form-urlencoded'
+          },
+          body: new URLSearchParams({
+            grant_type: 'authorization_code',
+            code: code,
+            client_id: clientId,
+            redirect_uri: redirectUri,
+            code_verifier: codeVerifier
+          })
+        });
+
+        const data = await response.json();
+
+        if (data.access_token) {
+          document.getElementById('output').innerText = 'Access Token: ' + data.access_token;
+          console.log('Access Token:', data.access_token);
+        } else {
+          document.getElementById('output').innerText = 'Ошибка: ' + JSON.stringify(data);
+        }
+      } catch (error) {
+        console.error(error);
+        document.getElementById('output').innerText = 'Сетевая ошибка: ' + error;
       }
-      return result;
     }
 
-    async function generateCodeChallenge(verifier) {
-      const encoder = new TextEncoder();
-      const data = encoder.encode(verifier);
-      const hash = await crypto.subtle.digest('SHA-256', data);
-      const base64 = btoa(String.fromCharCode(...new Uint8Array(hash)))
-        .replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
-      return base64;
-    }
-
-    (async () => {
-      const clientId = '53648174';
-      const redirectUri = 'https://whimsical-blini-c26feb.netlify.app/after-auth.html';
-      const scope = 'vkid.personal_info';
-      const responseType = 'code';
-      const codeVerifier = generateCodeVerifier();
-      const codeChallenge = await generateCodeChallenge(codeVerifier);
-      const state = Math.random().toString(36).substring(2);
-
-      sessionStorage.setItem('code_verifier', codeVerifier);
-      sessionStorage.setItem('state', state);
-
-      const authUrl = `https://id.vk.com/oauth/authorize?client_id=${clientId}` +
-        `&redirect_uri=${encodeURIComponent(redirectUri)}` +
-        `&response_type=${responseType}` +
-        `&scope=${scope}` +
-        `&state=${state}` +
-        `&code_challenge=${codeChallenge}` +
-        `&code_challenge_method=S256`;
-
-      window.location.href = authUrl;
-    })();
+    exchangeCodeForToken();
   </script>
 </body>
 </html>
